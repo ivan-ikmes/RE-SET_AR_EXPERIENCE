@@ -1,38 +1,51 @@
-# RE:SET · SYNC-01 · Experiencia AR
+# RE:SET · SYNC-01 — Experiencia AR
 
-Página web de realidad aumentada (MindAR + A-Frame). La cámara reconoce las tres tarjetas de la carpeta `STICKERS` y sobre cada una reproduce el video de su chaqueta, con una barra "UPDATING" y un panel con la información de esa versión.
+**Una chaqueta. Tres versiones.**
 
-## Archivos
+RE:SET es una submarca de MOVink que imagina la ropa de 2036. Su primera prenda, la chaqueta inteligente **SYNC-01**, se carga sola con el sol y el movimiento, se adapta al clima y a los rayos UV, permite pagar con un toque y se personaliza cambiando sus módulos. La idea de la marca es simple: no compras ropa, compras una versión.
 
-| Archivo | Qué es |
+Esta experiencia de realidad aumentada te deja verlo con tu propio celular. Apunta la cámara a una de las tres tarjetas de RE:SET y la chaqueta se "actualiza" frente a ti, como si fuera un software, para mostrarte en video la versión que tienes en la mano.
+
+> RE:SET SYNC-01 es un concepto de producto ficticio, creado como proyecto académico para la materia gerencia en diseño de la carrera profesional Diseño Digital y Multimedia.
+
+## Qué vas a encontrar
+
+| Tarjeta | Versión | Para qué es | Qué puede hacer |
+| --- | --- | --- | --- |
+| **DIARIO** | v2036.1 | La calle, la universidad, el trabajo y TransMilenio | Se carga con el sol y caminando, carga tu celular en el bolsillo del pecho, detecta el sol fuerte y te hace visible de noche con reflectivos y luces LED |
+| **INSTITUCIONAL** | v2036.2 | El uniforme de una empresa o universidad | Lleva el escudo de la institución, te deja pagar o entrar con un toque del puño y tiene un pasaporte digital que cuenta de dónde viene la prenda y permite revenderla |
+| **NATURALEZA** | v2036.3 | El páramo y los cerros | Tiene panel solar extra, capucha que se abre sola con el sol y mangas magnéticas que se quitan para convertirla en chaleco |
+
+## Cómo usarla
+
+1. Abre el enlace de la experiencia en Chrome o Safari desde tu celular.
+2. Toca **Abrir cámara** y acepta el permiso de cámara.
+3. Apunta a una de las tres tarjetas y enmárcala completa.
+4. Mira cómo la chaqueta se actualiza y se reproduce su video.
+5. En el panel de abajo puedes ver sus funciones, activar el sonido o abrir el video en pantalla completa.
+
+¿No tienes las tarjetas a mano o tu celular no abre la cámara? Toca **Ver sin cámara** para ver los videos de las tres versiones.
+
+## Uso de inteligencia artificial
+
+El proyecto se hizo con apoyo de tres herramientas de inteligencia artificial. La dirección creativa, el concepto de producto y las decisiones de diseño son del equipo.
+
+| Herramienta | Qué hizo |
 | --- | --- |
-| `index.html` | La experiencia. El contenido de cada chaqueta está en el bloque `CHAQUETAS`, al inicio del script. |
-| `targets.mind` | Las tres tarjetas compiladas para MindAR: 0 = DIARIO, 1 = INSTITUCIONAL, 2 = NATURALEZA. |
-| `stickers/` | Miniaturas de las tarjetas para la pantalla de inicio y el modo sin cámara. |
-| `videos/` | Aquí van los tres videos (ver abajo). |
+| **Nano Banana** (Google) | Generó las imágenes: las vistas de las tres chaquetas, los renders de producto y los fotogramas de inicio y final de cada plano del video. |
+| **MiniMax H3** | Generó los videos de cada plano a partir de esos fotogramas. Con ellos se armó el video de cada versión que aparece sobre las tarjetas. |
+| **Claude y Claude Code** (Anthropic) | Diseñaron y programaron la interfaz web, organizaron la información de cada chaqueta a partir del guion y el brandbook, prepararon las tarjetas para que la cámara las reconozca y probaron la experiencia. |
 
-## Cómo poner los videos
+## Tecnología
 
-Guarda cada video en `videos/` con este nombre exacto:
+- [MindAR](https://github.com/hiukim/mind-ar-js) para reconocer las tarjetas con la cámara.
+- [A-Frame](https://aframe.io) para mostrar el contenido en realidad aumentada.
+- Una página web en HTML, CSS y JavaScript: no necesitas instalar ninguna app.
 
-- `videos/v1_diario.mp4`
-- `videos/v2_institucional.mp4`
-- `videos/v3_naturaleza.mp4`
+## Identidad visual
 
-Mientras falte un video, sobre la tarjeta aparece el aviso "[ VIDEO PENDIENTE ]" y la página sigue funcionando.
+Fondo Void `#0B0B0F`, texto Chrome `#D9DCE3` y un solo neón por versión: Reboot Lime `#C6FF3D` para DIARIO, Chrome sin neón para INSTITUCIONAL y naranja `#FF7828` para NATURALEZA. Los titulares usan Unbounded y los datos, JetBrains Mono.
 
-Formato recomendado para que cargue rápido en el celular: MP4 H.264, 4:3, 960 × 720, unos 8 MB como máximo. Con FFmpeg:
+---
 
-```
-ffmpeg -i ENTRADA.mp4 -vf scale=960:720 -c:v libx264 -preset veryfast -crf 26 -c:a aac -b:a 96k -movflags +faststart videos/v1_diario.mp4
-```
-
-Si el video no es 4:3, cambia `VIDEO_AR.ancho` y la proporción en el script, o recórtalo a 4:3.
-
-## Cómo probarla
-
-La cámara solo funciona desde un enlace **https://**. Sube la carpeta completa a Netlify (arrastrar y soltar en app.netlify.com/drop) y abre el enlace en Chrome o Safari del celular. Para revisar los videos sin cámara, usa el botón "Ver sin cámara".
-
-## Si cambias las tarjetas
-
-Si editas cualquier sticker, hay que volver a compilar `targets.mind` con las tres imágenes en el mismo orden (DIARIO, INSTITUCIONAL, NATURALEZA), por ejemplo en el compilador web de MindAR.
+**RE: SET** · por MOVink — Tu ropa, reiniciada.
