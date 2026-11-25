@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0B0B0F" />
+  <title>RE:SET · SYNC-01 · Experiencia AR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Unbounded:wght@800&display=swap" rel="stylesheet" />
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    /* ===== Guía visual RE:SET (Brandbook 2036) =====
+       70% Void · 20% Chrome · 10% neón. Un solo neón dominante por pieza.
+       Titulares: Unbounded 800, siempre en mayúsculas. Datos y etiquetas: JetBrains Mono.
+       Sin cursivas. Logo nunca girado ni con sombra, siempre con "por MOVink". */
+    :root {
+      --void: #0B0B0F; --chrome: #D9DCE3; --lime: #C6FF3D; --uv: #8B6FFF; --signal: #FF4D2E;
+      --c: var(--lime);            /* neón activo: cambia con cada chaqueta */
+      --panel: rgba(11, 11, 15, .9);
+      --head: "Unbounded", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-style: normal; }
+    /* El video de la cámara va detrás (z-index -2): el body NO puede tener fondo o lo tapa */
+    html { background: #000; }
+    html, body { margin: 0; height: 100%; overflow: hidden; color: var(--chrome); font-family: var(--mono); }
+    button { font-family: var(--mono); }
+
+    .tag { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+    .logo { font-family: var(--head); font-weight: 800; letter-spacing: .04em; color: var(--chrome); line-height: 1; }
+    .logo b { color: var(--lime); font-weight: 800; }   /* "RE:" en lima, "SET" en chrome, como en las tarjetas */
+    .logo i { color: var(--lime); animation: blink 1s steps(1) infinite; }
+    .by { font-family: var(--mono); font-size: 14px; opacity: .65; margin-top: 6px; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .btn { appearance: none; border: 0; border-radius: 4px; padding: 14px 22px; font-size: 14px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase; background: var(--c); color: var(--void); cursor: pointer; }
+    .btn.ghost { background: transparent; color: var(--chrome); border: 1px solid rgba(217,220,227,.35); }
+    .btn.sm { padding: 9px 12px; font-size: 12px; }
+
+    /* ---------- Pantalla de inicio ---------- */
+    #start { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 18px; padding: 24px; text-align: center; overflow-y: auto;
+      background-color: var(--void);
+      background-image: linear-gradient(rgba(198,255,61,.07) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(198,255,61,.07) 1px, transparent 1px);
+      background-size: 64px 64px; }
+    #start .logo { font-size: 44px; }
+    #start h1 { font-family: var(--head); font-weight: 800; font-size: 18px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: .02em; }
+    #start p { margin: 0; max-width: 340px; opacity: .75; line-height: 1.5; font-size: 14px; }
+    .cards { display: flex; gap: 10px; justify-content: center; }
+    .cards img { width: 26vw; max-width: 110px; border-radius: 8px; border: 1px solid rgba(217,220,227,.2); }
+    .cards img:nth-child(1) { transform: rotate(-3deg); }   /* rotación solo en stickers (-3°) */
+    .cards img:nth-child(3) { transform: rotate(3deg); }
+    #warn { display: none; max-width: 340px; background: #2a0c08; border: 1px solid var(--signal); border-radius: 6px;
+      padding: 12px 14px; font-size: 13px; line-height: 1.45; text-align: left; }
+    .actions { display: flex; flex-direction: column; gap: 10px; width: min(320px, 100%); }
+
+    /* ---------- Escaneo ---------- */
+    #scan { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px; }
+    #scan .frame { width: 62vw; max-width: 340px; aspect-ratio: 1460/1914; border-radius: 18px; position: relative; }
+    #scan .frame { border: 2px dashed rgba(217,220,227,.6); animation: pulse 1.6s ease-in-out infinite; }
+    #scan span { background: var(--panel); padding: 8px 14px; border-radius: 4px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+    @keyframes pulse { 50% { transform: scale(1.03); border-color: var(--lime); } }
+
+    /* ---------- Botón volver al menú (arriba a la izquierda) ---------- */
+    #back { position: fixed; top: 12px; left: 12px; z-index: 25; display: none; align-items: center; gap: 6px;
+      height: 38px; padding: 0 12px; border-radius: 6px; border: 1px solid rgba(217,220,227,.35);
+      background: var(--panel); color: var(--chrome); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+    #back span { color: var(--c); font-size: 16px; line-height: 1; }
+
+    /* ---------- Barra superior: estado ---------- */
+    #status { position: fixed; top: 12px; left: 112px; right: 12px; min-height: 38px; z-index: 15; display: none; align-items: center;
+      justify-content: space-between; gap: 8px; background: var(--panel); padding: 8px 12px; border-radius: 6px;
+      border-left: 3px solid var(--c); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    #status b { color: var(--c); }
+
+    /* ---------- Panel inferior con info de la chaqueta ---------- */
+    #panel { position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 20; background: var(--panel);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 10px; padding: 14px 16px 16px;
+      border-top: 3px solid var(--c); transform: translateY(130%); transition: transform .35s ease, border-color .3s;
+      max-height: 62vh; overflow-y: auto; }
+    #panel.open { transform: translateY(0); }
+    #panel h2 { font-family: var(--head); font-weight: 800; text-transform: uppercase; margin: 4px 0 2px;
+      font-size: 26px; color: var(--c); letter-spacing: .01em; }
+    #panel .fw { font-size: 12px; opacity: .75; margin-bottom: 10px; }
+    #panel p { margin: 0 0 10px; line-height: 1.5; font-size: 14px; }
+    #panel ul { list-style: none; margin: 0 0 12px; padding: 0; display: none; gap: 6px; }
+    #panel.full ul { display: grid; }
+    #panel.full #pText { display: block; }
+    #pText { display: none; }
+    #panel li { font-size: 13px; line-height: 1.35; }
+    #panel li::before { content: "[ ] "; color: var(--c); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+    .chips span { font-size: 11px; letter-spacing: .12em; padding: 4px 8px; border: 1px solid var(--c); color: var(--c); border-radius: 3px; }
+    #panel .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #close { position: absolute; top: 6px; right: 10px; background: none; border: 0; color: var(--chrome); font-size: 22px; opacity: .6; }
+
+    /* ---------- Modo sin cámara (vista previa y respaldo) ---------- */
+    #gallery { position: fixed; inset: 0; z-index: 40; display: none; flex-direction: column; background: var(--void); overflow-y: auto; padding: 18px; gap: 14px; }
+    #gallery header { display: flex; justify-content: space-between; align-items: center; }
+    #gallery .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    #gallery .grid button { background: none; border: 1px solid rgba(217,220,227,.18); border-radius: 10px; padding: 0; overflow: hidden; cursor: pointer; }
+    #gallery .grid img { display: block; width: 100%; }
+    #viewer { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; justify-content: center; align-items: center;
+      gap: 12px; background: rgba(11,11,15,.96); padding: 16px; }
+    #viewer video { width: 100%; max-width: 820px; aspect-ratio: 4/3; background: #000; border: 1px solid var(--c); border-radius: 6px; }
+    #viewer .missing { width: 100%; max-width: 820px; aspect-ratio: 4/3; display: none; align-items: center; justify-content: center;
+      text-align: center; border: 1px dashed var(--c); border-radius: 6px; color: var(--c); font-size: 13px; letter-spacing: .12em; padding: 20px; }
+
+    .a-enter-vr, .a-enter-ar, .a-enter-vr-button, .a-enter-ar-button { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ============ INICIO ============ -->
+  <section id="start">
+    <div>
+      <div class="logo"><b>RE</b><i>:</i> SET</div>
+      <div class="by">por MOVink</div>
+    </div>
+    <h1>Una chaqueta. Tres versiones.</h1>
+    <div class="cards">
+      <img src="stickers/v1_diario.jpg" alt="Sticker DIARIO" />
+      <img src="stickers/v2_institucional.jpg" alt="Sticker INSTITUCIONAL" />
+      <img src="stickers/v3_naturaleza.jpg" alt="Sticker NATURALEZA" />
+    </div>
+    <p>Apunta la cámara a cualquiera de las tres tarjetas para ver cómo se actualiza tu SYNC-01.</p>
+    <div id="warn"></div>
+    <div class="actions">
+      <button class="btn" id="btnStart">Abrir cámara</button>
+      <button class="btn ghost" id="btnGallery">Ver sin cámara</button>
+    </div>
+    <div class="tag">fw v2036 · BOG · 2600 m</div>
+  </section>
+
+  <button id="back" aria-label="Volver al menú principal"><span>‹</span> Menú</button>
+  <div id="scan"><div class="frame"></div><span>Encuadra una tarjeta completa</span></div>
+  <div id="status"><span id="sText">Tarjeta detectada</span><b id="sVer"></b></div>
+
+  <!-- ============ PANEL DE INFORMACIÓN ============ -->
+  <div id="panel">
+    <button id="close" aria-label="Cerrar">×</button>
+    <div class="tag" id="pTag"></div>
+    <h2 id="pTitle"></h2>
+    <div class="fw" id="pFw"></div>
+    <p id="pText"></p>
+    <div class="chips" id="pChips"></div>
+    <ul id="pList"></ul>
+    <div class="row">
+      <button class="btn sm" id="bPlay">Pausar</button>
+      <button class="btn ghost sm" id="bSound">Activar sonido</button>
+      <button class="btn ghost sm" id="bInfo">Funciones ▾</button>
+      <button class="btn ghost sm" id="bFull">Ampliar video</button>
+    </div>
+  </div>
+
+  <!-- ============ MODO SIN CÁMARA ============ -->
+  <section id="gallery">
+    <header>
+      <div><div class="logo" style="font-size:24px"><b>RE</b><i>:</i> SET</div><div class="by">por MOVink</div></div>
+      <button class="btn ghost sm" id="gBack">Volver</button>
+    </header>
+    <div class="tag">Toca una versión para ver su video</div>
+    <div class="grid" id="gGrid"></div>
+  </section>
+
+  <div id="viewer">
+    <div class="tag" id="vTag"></div>
+    <video id="vVideo" playsinline controls preload="metadata"></video>
+    <div class="missing" id="vMissing"></div>
+    <button class="btn ghost sm" id="vClose">Cerrar</button>
+  </div>
+
+  <!-- ============ ESCENA AR ============ -->
+  <a-scene id="scene"
+    mindar-image="imageTargetSrc: targets.mind; maxTrack: 1; autoStart: false; uiLoading: no; uiScanning: no; uiError: yes; filterMinCF: 0.0001; filterBeta: 0.001"
+    color-space="sRGB" renderer="colorManagement: true; antialias: true" vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <!-- Las entidades de cada tarjeta se crean por código a partir de CHAQUETAS -->
+  </a-scene>
+
+  <script>
+    // ======================================================================
+    //  EDITA AQUÍ EL CONTENIDO DE CADA CHAQUETA
+    //  Fuentes: guion RE:SET SYNC-01 (v3), Brandbook 2036 y tablero FigJam.
+    //  targetIndex = orden en targets.mind (0 DIARIO, 1 INSTITUCIONAL, 2 NATURALEZA)
+    //  video = ruta del video. Cuando lo tengas, ponlo en /videos con ese nombre.
+    // ======================================================================
+    const CHAQUETAS = [
+      {
+        id: "v1", nombre: "DIARIO", etiqueta: "SYNC-01 · v1", fw: "fw v2036.1 · origen: Bogotá, CO",
+        color: "#C6FF3D",                 // Reboot Lime
+        sticker: "stickers/v1_diario.jpg",
+        video: "videos/v1_diario.mp4",
+        texto: "Para la calle, la universidad, el trabajo y TransMilenio. Paneles morado UV, faja ladrillo con parches de grafiti de barrio y cremallera lima.",
+        modulos: ["CAPUCHA", "PARCHES", "NFC"],
+        funciones: [
+          "Se carga con el sol: películas solares en hombros y capucha",
+          "Se carga caminando: fibras cinéticas en codos",
+          "Carga tu celular en el bolsillo-estación del pecho",
+          "Detecta el sol fuerte: el LED del puño pasa de lima a naranja (UV 9)",
+          "Te ven de noche: reflectivos y LED en el puño"
+        ]
+      },
+      {
+        id: "v2", nombre: "INSTITUCIONAL", etiqueta: "SYNC-01 · v2", fw: "fw v2036.2 · nfc://reset/sync-01",
+        color: "#D9DCE3",                 // Chrome (sin neón)
+        sticker: "stickers/v2_institucional.jpg",
+        video: "videos/v2_institucional.mp4",
+        texto: "Modo sobrio para el uniforme de empresa o universidad: sin neón, paneles gris grafito, faja negra lisa y el escudo de la institución bordado en el pecho.",
+        modulos: ["ESCUDO", "ID NFC", "FORRO"],
+        funciones: [
+          "Paga con el puño: entras a TransMilenio o a la sede con un toque",
+          "Carné o acceso NFC integrado en el puño",
+          "Sabes de dónde viene: pasaporte digital con origen Bogotá y huella 4.2 kg CO2e",
+          "Revéndela con un toque desde el pasaporte"
+        ]
+      },
+      {
+        id: "v3", nombre: "NATURALEZA", etiqueta: "SYNC-01 · v3", fw: "fw v2036.3 · páramo y cerros",
+        color: "#FF7828",                 // naranja de la tarjeta (acento de marca, con verde musgo)
+        sticker: "stickers/v3_naturaleza.jpg",
+        video: "videos/v3_naturaleza.mp4",
+        texto: "Para el páramo y los cerros: paneles solares ampliados, faja verde musgo y mangas que se sueltan con un clic magnético para quedar en chaleco.",
+        modulos: ["PANEL +", "CAPUCHA UV", "CHALECO"],
+        funciones: [
+          "Panel solar extra en los hombros",
+          "Se abre sola con el sol: capucha UV automática",
+          "Mangas magnéticas desmontables: pasa de chaqueta a chaleco",
+          "Se repara, no se bota: parche reparador con chip"
+        ]
+      }
+    ];
+    // Posición del video sobre la tarjeta (ancho de la tarjeta = 1, centro = 0,0).
+    // Por defecto cubre la zona de la chaqueta y deja ver el nombre de la tarjeta.
+    const VIDEO_AR = { ancho: 0.86, y: 0.2 };          // alto = ancho × 3/4 (videos 4:3)
+    const CONFIRMAR_MS = 800;                          // tiempo que la tarjeta debe verse antes de activarse
+    // ======================================================================
+
+    const $ = id => document.getElementById(id);
+    const scene = $('scene'), panel = $('panel');
+    const ALTO_TARJETA = 1914 / 1460;                  // proporción de los stickers
+    let actual = -1, sonido = false, enPausa = false, enMenu = false;
+
+    // ---------- Diagnóstico: la cámara solo funciona en HTTPS ----------
+    const warn = $('warn');
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      warn.style.display = 'block';
+      warn.innerHTML = 'La cámara no está disponible aquí. Abre esta página desde un enlace <b>https://</b> (por ejemplo, Netlify) en Chrome o Safari, no como archivo descargado ni dentro de otra app. Mientras tanto puedes usar <b>Ver sin cámara</b>.';
+    }
+
+    // ---------- Videos (uno por chaqueta, ocultos, usados como textura) ----------
+    const videos = CHAQUETAS.map((c, i) => {
+      const v = document.createElement('video');
+      Object.assign(v, { id: 'vid' + i, muted: true, loop: true, playsInline: true, preload: 'auto', crossOrigin: 'anonymous' });
+      v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.setAttribute('muted', '');
+      v.style.display = 'none';
+      v.dataset.ok = '0';
+      v.addEventListener('loadeddata', () => { v.dataset.ok = '1'; });
+      v.addEventListener('error', () => { v.dataset.ok = 'x'; });
+      v.src = c.video;
+      document.body.appendChild(v);
+      return v;
+    });
+    const hayVideo = i => videos[i].dataset.ok === '1';
+
+    // ---------- Capas AR de cada tarjeta ----------
+    const W = VIDEO_AR.ancho, H = W * 3 / 4;
+    const capas = CHAQUETAS.map((c, i) => {
+      const t = document.createElement('a-entity');
+      t.setAttribute('mindar-image-target', `targetIndex: ${i}`);
+      t.innerHTML = `
+        <a-entity class="grupo" position="0 ${VIDEO_AR.y} 0.01" visible="false">
+          <!-- marco con el neón de la versión -->
+          <a-plane class="marco" width="${W + 0.03}" height="${H + 0.03}" position="0 0 -0.002"
+            material="color:${c.color}; shader:flat; opacity:0; transparent:true"></a-plane>
+          <!-- video -->
+          <a-plane class="video" width="${W}" height="${H}"
+            material="shader:flat; src:#vid${i}; opacity:0; transparent:true"></a-plane>
+          <!-- aviso cuando el video aún no existe -->
+          <a-plane class="pendiente" width="${W}" height="${H}" visible="false"
+            material="color:#0B0B0F; shader:flat; opacity:0.92; transparent:true">
+            <a-text value="[ VIDEO PENDIENTE ]" align="center" color="${c.color}" font="monoid" width="0.9" position="0 0.05 0.001"></a-text>
+            <a-text value="${c.video}" align="center" color="#D9DCE3" font="monoid" width="0.6" position="0 -0.05 0.001"></a-text>
+          </a-plane>
+          <!-- barra de carga: UPDATING -->
+          <a-entity class="update" position="0 ${-H / 2 - 0.07} 0.01">
+            <a-text class="uTxt" value="UPDATING 0%" align="left" color="#D9DCE3" font="monoid" width="0.7" position="${-W / 2} 0.04 0"></a-text>
+            <a-plane width="${W}" height="0.018" material="color:#D9DCE3; shader:flat; opacity:0.2; transparent:true"></a-plane>
+            <a-plane class="uFill" width="${W}" height="0.018" position="${-W / 2} 0 0.001" scale="0.0001 1 1"
+              material="color:${c.color}; shader:flat"></a-plane>
+          </a-entity>
+        </a-entity>`;
+      scene.appendChild(t);
+      // Las tres tarjetas comparten composición: se confirma la detección
+      // durante CONFIRMAR_MS antes de mostrarla, para evitar falsos positivos.
+      t.addEventListener('targetFound', () => {
+        if (enMenu) return;
+        clearTimeout(t._confirma);
+        t._confirma = setTimeout(() => { t._activa = true; encontrada(i); }, CONFIRMAR_MS);
+      });
+      t.addEventListener('targetLost', () => {
+        clearTimeout(t._confirma);
+        if (t._activa) { t._activa = false; perdida(i); }
+      });
+      return t;
+    });
+
+    function opacidad(el, to, dur = 400, delay = 0) {
+      el.removeAttribute('animation__o');
+      el.setAttribute('animation__o', `property: material.opacity; to: ${to}; dur: ${dur}; delay: ${delay}; easing: easeOutQuad`);
+    }
+
+    // Secuencia al detectar: barra UPDATING → aparece el video
+    let timerCarga = null;
+    function encontrada(i) {
+      const c = CHAQUETAS[i], t = capas[i];
+      const grupo = t.querySelector('.grupo'), fill = t.querySelector('.uFill'), txt = t.querySelector('.uTxt');
+      grupo.setAttribute('visible', true);
+      $('scan').style.display = 'none';
+      $('status').style.display = 'flex';
+      $('sText').textContent = 'Actualizando a';
+      $('sVer').textContent = c.nombre;
+      if (navigator.vibrate) navigator.vibrate(40);
+
+      // barra de carga (estilo actualización de software)
+      clearInterval(timerCarga);
+      let p = 0;
+      fill.setAttribute('scale', '0.0001 1 1');
+      timerCarga = setInterval(() => {
+        p = Math.min(100, p + 4 + Math.random() * 9);
+        const k = Math.max(p / 100, 0.0001);              // crece desde la izquierda
+        fill.setAttribute('scale', `${k} 1 1`);
+        fill.setAttribute('position', `${-W / 2 + (W * k) / 2} 0 0.001`);
+        txt.setAttribute('value', p < 100 ? `UPDATING ${Math.round(p)}%` : `v2036.${i + 1} · ${c.nombre}`);
+        if (p >= 100) { clearInterval(timerCarga); mostrarVideo(i); }
+      }, 70);
+
+      mostrarPanel(i);
+    }
+
+    function mostrarVideo(i) {
+      const t = capas[i];
+      opacidad(t.querySelector('.marco'), 0.9, 400);
+      if (hayVideo(i)) {
+        t.querySelector('.pendiente').setAttribute('visible', false);
+        opacidad(t.querySelector('.video'), 1, 500);
+        if (!enPausa) videos[i].play().catch(() => {});
+      } else {
+        t.querySelector('.pendiente').setAttribute('visible', true);
+      }
+      $('sText').textContent = 'Tarjeta detectada';
+    }
+
+    function perdida(i) {
+      const t = capas[i];
+      clearInterval(timerCarga);
+      videos[i].pause();
+      t.querySelector('.grupo').setAttribute('visible', false);
+      ['.marco', '.video'].forEach(s => { const el = t.querySelector(s); el.removeAttribute('animation__o'); el.setAttribute('material', 'opacity', 0); });
+      $('scan').style.display = 'flex';
+      $('status').style.display = 'none';
+    }
+
+    // ---------- Panel de información ----------
+    function mostrarPanel(i) {
+      actual = i;
+      const c = CHAQUETAS[i];
+      document.documentElement.style.setProperty('--c', c.color);
+      $('pTag').textContent = c.etiqueta;
+      $('pTitle').textContent = c.nombre;
+      $('pFw').textContent = c.fw;
+      $('pText').textContent = c.texto;
+      $('pChips').innerHTML = c.modulos.map(m => `<span>${m}</span>`).join('');
+      $('pList').innerHTML = c.funciones.map(f => `<li>${f}</li>`).join('');
+      $('bPlay').textContent = enPausa ? 'Reproducir' : 'Pausar';
+      $('bSound').textContent = sonido ? 'Silenciar' : 'Activar sonido';
+      panel.classList.add('open');
+    }
+
+    $('close').onclick = () => panel.classList.remove('open');
+    $('bPlay').onclick = () => {
+      if (actual < 0) return;
+      const v = videos[actual];
+      enPausa = !v.paused;
+      enPausa ? v.pause() : v.play().catch(() => {});
+      $('bPlay').textContent = enPausa ? 'Reproducir' : 'Pausar';
+    };
+    $('bSound').onclick = () => {
+      sonido = !sonido;
+      videos.forEach(v => { v.muted = !sonido; });
+      $('bSound').textContent = sonido ? 'Silenciar' : 'Activar sonido';
+    };
+    $('bInfo').onclick = () => {
+      const full = panel.classList.toggle('full');
+      $('bInfo').textContent = full ? 'Ocultar ▴' : 'Funciones ▾';
+    };
+    $('bFull').onclick = () => { if (actual >= 0) abrirVisor(actual); };
+
+    // ---------- Arranque de la cámara ----------
+    $('btnStart').addEventListener('click', () => {
+      // Desbloquea los videos dentro del toque del usuario (necesario en iPhone)
+      videos.forEach(v => v.play().then(() => v.pause()).catch(() => {}));
+      $('start').style.display = 'none';
+      $('scan').style.display = 'flex';
+      $('back').style.display = 'flex';
+      const sys = scene.systems['mindar-image-system'];
+      enMenu = false;
+      if (!sys.controller) { sys.start(); return; }       // primera vez
+      // Al volver desde el menú: nueva señal de cámara y se reanuda el reconocimiento
+      navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'environment' } })
+        .then(stream => {
+          capas.forEach(t => { t.object3D.visible = false; });
+          sys.video.srcObject = stream;
+          sys.unpause();
+        })
+        .catch(() => scene.emit('arError'));
+    });
+
+    // ---------- Volver al menú principal ----------
+    $('back').addEventListener('click', () => {
+      capas.forEach((t, i) => {
+        clearTimeout(t._confirma);
+        if (t._activa) { t._activa = false; perdida(i); }
+      });
+      videos.forEach(v => v.pause());
+      enMenu = true;
+      // Pausa el reconocimiento y apaga la cámara (se reactiva al volver a entrar)
+      const sys = scene.systems['mindar-image-system'];
+      try { sys.pause(); sys.video.srcObject.getTracks().forEach(tr => tr.stop()); } catch (e) {}
+      // MindAR deja la última tarjeta marcada como visible: se reinicia para que vuelva a detectarse
+      capas.forEach(t => { t.object3D.visible = false; });
+      panel.classList.remove('open', 'full');
+      $('bInfo').textContent = 'Funciones ▾';
+      ['scan', 'status', 'back'].forEach(id => { $(id).style.display = 'none'; });
+      $('start').style.display = 'flex';
+      $('btnStart').textContent = 'Abrir cámara';
+    });
+
+    scene.addEventListener('arError', () => {
+      $('scan').style.display = 'none';
+      $('back').style.display = 'none';
+      $('start').style.display = 'flex';
+      $('btnStart').textContent = 'Reintentar';
+      warn.style.display = 'block';
+      warn.innerHTML = 'No se pudo abrir la cámara. Revisa:<br>1) Que diste permiso de cámara (candado junto a la dirección → Permisos).<br>2) Que abriste el enlace en Chrome o Safari, no dentro de WhatsApp o Instagram.<br>3) Que ninguna otra app está usando la cámara.<br>También puedes usar <b>Ver sin cámara</b>.';
+    });
+
+    // ---------- Modo sin cámara (vista previa / respaldo) ----------
+    $('gGrid').innerHTML = CHAQUETAS.map((c, i) => `<button data-i="${i}"><img src="${c.sticker}" alt="${c.nombre}"></button>`).join('');
+    $('gGrid').querySelectorAll('button').forEach(b => b.onclick = () => abrirVisor(+b.dataset.i));
+    $('btnGallery').onclick = () => { $('gallery').style.display = 'flex'; };
+    $('gBack').onclick = () => { $('gallery').style.display = 'none'; };
+
+    const vv = $('vVideo');
+    function abrirVisor(i) {
+      const c = CHAQUETAS[i];
+      videos[i].pause();
+      document.documentElement.style.setProperty('--c', c.color);
+      $('vTag').textContent = `${c.etiqueta} · ${c.nombre}`;
+      $('vMissing').textContent = `[ VIDEO PENDIENTE ] · ${c.video}`;
+      vv.style.display = 'block'; $('vMissing').style.display = 'none';
+      vv.onerror = () => { vv.style.display = 'none'; $('vMissing').style.display = 'flex'; };
+      vv.src = c.video;
+      vv.muted = false;
+      vv.play().catch(() => {});
+      $('viewer').style.display = 'flex';
+    }
+    $('vClose').onclick = () => { vv.pause(); vv.removeAttribute('src'); vv.load(); $('viewer').style.display = 'none'; };
+
+    window.addEventListener('pagehide', () => { try { scene.systems['mindar-image-system'].stop(); } catch (e) {} });
+  </script>
+</body>
+</html>
